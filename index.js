@@ -4,41 +4,43 @@ import url from 'url';
 
 const PORT = process.env.PORT || 8080;
 
-//req.headers.host === localhost
-//req.url - всё что после localhost:8080
-// Запрос по адресу: 'http://localhost:8080/users/3/friends?sex=m&age=25';
-const server = http.createServer((req, res) => {
-  const normilizedURL = new url.URL(req.url, `http://${req.headers.host}`); //для созд-я объекта адр строки
-  console.log(normilizedURL.searchParams.get('age')); //получили значения пар-ра запроса age - 25
-  console.log(normilizedURL.searchParams.getAll('age')); //массив всех пар-ров age [ '25' ]
+const server = new http.Server();
+// вместо const server = http.createServer((req, res) => {
+// тогда - server.on('request', (req, res) => {...})
 
-  const params = Object.fromEntries(normilizedURL.searchParams.entries()); //получили объект зн-й парам-в
-  console.log(params); //{ sex: 'm', age: '25' }
-  res.end();
+//pipe() перенаправляем(записываем) контент из одного рес-са в другой
+// process.stdin.pipe(process.stdout); //печатаем в консоли и сразу с пом. pipe() перенаправляем это в поток вывода
+
+// process.stdin.on('data', (chunk) => {
+//   process.stdout.write('> ' + chunk);
+// });
+//виды  Readable потоков:
+// -new Readable() //emitter event - 'end'
+// -fs.createReadStream('./package.json); - чтение из файла
+// -preocess.stdin
+// -req - чтение запроса
+
+//виды  Writable потоков:
+// -new Writable() //emitter event - 'finish'
+// -fs.createWriteStream('./copy); - запись в файл
+// -preocess.stdout - вывод в консоль
+// -res - запись в ответ
+
+server.on('request', (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+
+  for (let i = 5; i > 0; i--) {
+    setTimeout(() => {
+      res.write(`<p>${i}</p>`);
+    }, (5 - i) * 1000);
+  }
+
+  setTimeout(() => {
+    res.end('<p>Done!</p>');
+  }, 5000);
 });
 
-//при переходе на http://localhost:8080/index.html
-// const server = http.createServer((req, res) => {
-//   //const fileName = req.url.slice(1) || 'index.html'; // из /index.html делаем index.html
-//   const normilizedURL = new url.URL(req.url, `http://${req.headers.host}`); //для
-//   const fileName = normilizedURL.pathname.slice(1) || 'index.html';
-//   fs.readFile(`./public/${fileName}`, (error, data) => {
-//     //читаем из index.html
-//     if (!error) {
-//       res.end(data);
-//     }
-//     res.statusCode = 404;
-//     res.end();
-//   });
-// });
-
-// const server = http.createServer((req, res) => {
-//   console.log(req.url);
-//   res.setHeader('Content-Type', 'text/plain'); //Content-Type для текста
-
-//   res.end('Hello'); // res.end можно с текстом или без
-//   //res.end();
-// });
+server.on('error', () => {});
 
 server.listen(PORT, () => {
   console.log(`Server statrted on ${PORT}`);
