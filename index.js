@@ -27,20 +27,41 @@ const server = new http.Server();
 // -res - запись в ответ
 
 server.on('request', (req, res) => {
-  res.setHeader('Content-Type', 'text/html');
+  if (req.url === '/donload') {
+    //если путь в адресной строке download - скачиваем файл
+    const fileStream = fs.createReadStream('./video.mp4'); //считали в fileStream
 
-  for (let i = 5; i > 0; i--) {
-    setTimeout(() => {
-      res.write(`<p>${i}</p>`);
-    }, (5 - i) * 1000);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Type', 'attachment; filename=video/mp4'); //чтобы браузер воспринял как attachment
+
+    fileStream.pipe(res); //записали из fileStream в ответ res
+
+    fileStream.on('error', (error) => {
+      res.statusCode = 500;
+      res.end('Server error');
+    });
+  } else {
+    //если путь в адресной строке не download - возвращаем ссылку на скачивание
+    res.setHeader('Content-Type', 'text/html');
+    res.end(`<a href="/download" target="_blank">Download</a>`);
   }
-
-  setTimeout(() => {
-    res.end('<p>Done!</p>');
-  }, 5000);
 });
 
-server.on('error', () => {});
+// server.on('request', (req, res) => {
+//   res.setHeader('Content-Type', 'text/html');
+
+//   for (let i = 5; i > 0; i--) {
+//     setTimeout(() => {
+//       res.write(`<p>${i}</p>`);
+//     }, (5 - i) * 1000);
+//   }
+
+//   setTimeout(() => {
+//     res.end('<p>Done!</p>');
+//   }, 5000);
+// });
+
+// server.on('error', () => {});
 
 server.listen(PORT, () => {
   console.log(`Server statrted on ${PORT}`);
