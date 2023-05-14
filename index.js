@@ -27,25 +27,48 @@ const server = new http.Server();
 // -res - запись в ответ
 
 server.on('request', (req, res) => {
-  if (req.url === '/donload') {
-    //если путь в адресной строке download - скачиваем файл
-    const fileStream = fs.createReadStream('./video.mp4'); //считали в fileStream
-
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Type', 'attachment; filename=video/mp4'); //чтобы браузер воспринял как attachment
-
-    fileStream.pipe(res); //записали из fileStream в ответ res
-
-    fileStream.on('error', (error) => {
-      res.statusCode = 500;
-      res.end('Server error');
-    });
-  } else {
-    //если путь в адресной строке не download - возвращаем ссылку на скачивание
-    res.setHeader('Content-Type', 'text/html');
-    res.end(`<a href="/download" target="_blank">Download</a>`);
+  if (req.url === '/favicon.ico') {
+    res.end('');
+    return;
   }
+  const fileSName = req.url === '/' ? 'pacage.json' : 'wrong name';
+  const file = fs.createReadStream('/' + fileName); //считали в fileStream
+
+  res.setHeader('Content-Type', 'text/html');
+
+  file.on('error', (error) => {
+    res.statusCode = 400;
+    res.end('');
+  });
+
+  file.pipe(res); //записали из fileStream в ответ res
+  // 'close' - это метод как для успешного так и для неудачного завершения ответа
+  //file.destroy() вызываем в событии 'close' чтобы закрыть файл при разрыве соединения с браузером
+  res.on('close', () => {
+    file.destroy();
+  });
 });
+
+// server.on('request', (req, res) => {
+//   if (req.url === '/donload') {
+//     //если путь в адресной строке download - скачиваем файл
+//     const fileStream = fs.createReadStream('./video.mp4'); //считали в fileStream
+
+//     res.setHeader('Content-Type', 'video/mp4');
+//     res.setHeader('Content-Type', 'attachment; filename=video/mp4'); //чтобы браузер воспринял как attachment
+
+//     fileStream.pipe(res); //записали из fileStream в ответ res
+
+//     fileStream.on('error', (error) => {
+//       res.statusCode = 500;
+//       res.end( 'Server error' );
+//     } );
+//   } else {
+//     //если путь в адресной строке не download - возвращаем ссылку на скачивание
+//     res.setHeader('Content-Type', 'text/html');
+//     res.end(`<a href="/download" target="_blank">Download</a>`);
+//   }
+// });
 
 // server.on('request', (req, res) => {
 //   res.setHeader('Content-Type', 'text/html');
@@ -61,7 +84,7 @@ server.on('request', (req, res) => {
 //   }, 5000);
 // });
 
-// server.on('error', () => {});
+server.on('error', () => {});
 
 server.listen(PORT, () => {
   console.log(`Server statrted on ${PORT}`);
