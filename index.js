@@ -1,47 +1,45 @@
 import http from 'http';
 import fs from 'fs';
+import path from 'path';
 import url from 'url';
+import zlib, { createBrotliCompress } from 'zlib';
+import { pipeline } from 'stream';
 
 const PORT = process.env.PORT || 8080;
 
 const server = new http.Server();
-// вместо const server = http.createServer((req, res) => {
-// тогда - server.on('request', (req, res) => {...})
-
-//pipe() перенаправляем(записываем) контент из одного рес-са в другой
-// process.stdin.pipe(process.stdout); //печатаем в консоли и сразу с пом. pipe() перенаправляем это в поток вывода
-
-// process.stdin.on('data', (chunk) => {
-//   process.stdout.write('> ' + chunk);
-// });
-//виды  Readable потоков:
-// -new Readable() //emitter event - 'end'
-// -fs.createReadStream('./package.json); - чтение из файла
-// -preocess.stdin
-// -req - чтение запроса
-
-//виды  Writable потоков:
-// -new Writable() //emitter event - 'finish'
-// -fs.createWriteStream('./copy); - запись в файл
-// -preocess.stdout - вывод в консоль
-// -res - запись в ответ
 
 server.on('request', (req, res) => {
-  if (req.url === '/favicon.ico') {
-    res.end('');
+  const url = new URL(req.url, `http://${req.headers.host}`); //объект с ключами данных поисковой строки
+  const fileName = url.pathname.slice(1) || 'index.html'; // url.pathname.slice(1) - избавились от /
+  const filePath = path.resolve('public', fileName); // объединили public/...html
+
+  if (!fs.existsSync(filePath)) {
+    res.statusCode = 404;
+    res.end('File does not exist');
     return;
   }
-  const fileSName = req.url === '/' ? 'pacage.json' : 'wrong name';
-  const file = fs.createReadStream('/' + fileName); //считали в fileStream
+  console.log(url);
+  res.setHeader('Content-Encoding', 'gzip');
 
-  res.setHeader('Content-Type', 'text/html');
+  const file = fs.createReadStream(filePath); //считали в fileStream
+  //const gzip = zlib.createBrotliCompress() //более современная
+  const gzip = zlib.createGzip(); //сжатие
+
+  file
+    .on('error', (error) => {})
+    .pipe(gzip) //передали считанный файл в gzip
+    .on('error', (error) => {})
+    .pipe(res) //передали считанный файл в res
+    .on('error', (error) => {});
+  //pipeline(file, gzip, res, (error) => {}); //можно объединить все ресурсы и уст один обработчик ошибок
+
+  gzip.pipe(fs.createWriteStream(filePath + '.gzip'));
 
   file.on('error', (error) => {
-    res.statusCode = 400;
-    res.end('');
+    res.statusCode = 500;
+    res.end('Some error');
   });
-
-  file.pipe(res); //записали из fileStream в ответ res
   // 'close' - это метод как для успешного так и для неудачного завершения ответа
   //file.destroy() вызываем в событии 'close' чтобы закрыть файл при разрыве соединения с браузером
   res.on('close', () => {
