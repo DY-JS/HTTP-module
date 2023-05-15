@@ -1,89 +1,49 @@
-import http from 'http';
-import fs from 'fs';
+import express from 'express';
 import path from 'path';
-import url from 'url';
-import zlib, { createBrotliCompress } from 'zlib';
-import { pipeline } from 'stream';
+
+const app = express();
 
 const PORT = process.env.PORT || 8080;
 
-const server = new http.Server();
+app.use(express.static('public')); //express.static - возвр. файлы из указ папки
+//app.use(express.urlencoded({extended: true})) //для всего приложения будет urlencoded
 
-server.on('request', (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`); //объект с ключами данных поисковой строки
-  const fileName = url.pathname.slice(1) || 'index.html'; // url.pathname.slice(1) - избавились от /
-  const filePath = path.resolve('public', fileName); // объединили public/...html
-
-  if (!fs.existsSync(filePath)) {
-    res.statusCode = 404;
-    res.end('File does not exist');
-    return;
-  }
-  console.log(url);
-  res.setHeader('Content-Encoding', 'gzip');
-
-  const file = fs.createReadStream(filePath); //считали в fileStream
-  //const gzip = zlib.createBrotliCompress() //более современная
-  const gzip = zlib.createGzip(); //сжатие
-
-  file
-    .on('error', (error) => {})
-    .pipe(gzip) //передали считанный файл в gzip
-    .on('error', (error) => {})
-    .pipe(res) //передали считанный файл в res
-    .on('error', (error) => {});
-  //pipeline(file, gzip, res, (error) => {}); //можно объединить все ресурсы и уст один обработчик ошибок
-
-  gzip.pipe(fs.createWriteStream(filePath + '.gzip'));
-
-  file.on('error', (error) => {
-    res.statusCode = 500;
-    res.end('Some error');
-  });
-  // 'close' - это метод как для успешного так и для неудачного завершения ответа
-  //file.destroy() вызываем в событии 'close' чтобы закрыть файл при разрыве соединения с браузером
-  res.on('close', () => {
-    file.destroy();
-  });
+//urlencoded установили urlencoded(для обработки данных из форм) только для app.post '/api'
+app.post('/api', express.urlencoded({ extended: true }), (req, res) => {
+  console.log(req.body);
 });
 
-// server.on('request', (req, res) => {
-//   if (req.url === '/donload') {
-//     //если путь в адресной строке download - скачиваем файл
-//     const fileStream = fs.createReadStream('./video.mp4'); //считали в fileStream
-
-//     res.setHeader('Content-Type', 'video/mp4');
-//     res.setHeader('Content-Type', 'attachment; filename=video/mp4'); //чтобы браузер воспринял как attachment
-
-//     fileStream.pipe(res); //записали из fileStream в ответ res
-
-//     fileStream.on('error', (error) => {
-//       res.statusCode = 500;
-//       res.end( 'Server error' );
-//     } );
-//   } else {
-//     //если путь в адресной строке не download - возвращаем ссылку на скачивание
-//     res.setHeader('Content-Type', 'text/html');
-//     res.end(`<a href="/download" target="_blank">Download</a>`);
-//   }
+// app.post('/api', express.json()), (req, res) => {  //для json()
+//   console.log(req.body)
 // });
 
-// server.on('request', (req, res) => {
-//   res.setHeader('Content-Type', 'text/html');
+//-----------------------------------------------
+//возвращаем файл или ошибку
+// app.use(express.static(path.resolve('public'))); //express.static - возвр. файлы из указ папки
 
-//   for (let i = 5; i > 0; i--) {
-//     setTimeout(() => {
-//       res.write(`<p>${i}</p>`);
-//     }, (5 - i) * 1000);
-//   }
-
-//   setTimeout(() => {
-//     res.end('<p>Done!</p>');
-//   }, 5000);
+// app.use('/', (req, res) => {
+//   res.sendStatus(404);
 // });
 
-server.on('error', () => {});
+// app.use('/', (req, res) => {
+//   //res.sendStatus(201); //тектовое описание 201- Created  200-OK 503 -Service Unavailible
+//   //res.send( { text: 'Hello' } ); //send автоматически опр. Content-Type
+//   const filePath = path.resolve('public', 'index.html'); //path.resolve построит абсолютный путь public/index.html
+//   res.sendFile(filePath);
+// } );
 
-server.listen(PORT, () => {
+//--------------------------------------------
+// app.use('/', (req, res, next) => {
+//   res.write('<h1>Home</h1>');
+//   next(); // next() для создания цепочки вызовов
+// });
+
+//По адресу http://localhost:8080/123 отработает Home и Next Page
+// app.use('/123', (req, res) => {
+//   res.end('<h1>Next Page</h1>');
+// });
+//---------------------------------------------
+
+app.listen(PORT, () => {
   console.log(`Server statrted on ${PORT}`);
 });
